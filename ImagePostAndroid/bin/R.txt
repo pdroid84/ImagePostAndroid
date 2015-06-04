@@ -404,7 +404,8 @@ int drawable abc_textfield_search_activated_mtrl_alpha 0x7f020038
 int drawable abc_textfield_search_default_mtrl_alpha 0x7f020039
 int drawable abc_textfield_search_material 0x7f02003a
 int drawable ic_launcher 0x7f02003b
-int drawable test1 0x7f02003c
+int drawable image1 0x7f02003c
+int drawable test1 0x7f02003d
 int id action_bar 0x7f090040
 int id action_bar_activity_content 0x7f090003
 int id action_bar_container 0x7f09003f

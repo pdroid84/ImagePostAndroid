@@ -11,6 +11,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.ByteBuffer;
 
 import org.apache.http.HttpEntity;
@@ -47,8 +48,12 @@ public class MainActivity extends ActionBarActivity {
 	EditText mEditText;
 	ImageView mImageView;
 	String input;
+	//This is the url for WEB (Browser)
 //	final String BASE_URL = "http://localhost:8888/";
-	final String BASE_URL = "http://10.0.2.2:8888/";
+	//This is the url for Android emulator
+//	final String BASE_URL = "http://10.0.2.2:8888/";
+	//This is the url for genemotion emulator
+	final String BASE_URL = "http://10.0.3.2:8888/";
 	final String UPLOAD_URL = "upload";
 	final String SERVE_URL = "serve?title=";
 	@Override
@@ -90,8 +95,10 @@ public class MainActivity extends ActionBarActivity {
 	
 	public void postImage (View v) {
 		Log.d("DEB", "postImage is called!");
+		input = mEditText.getText().toString();
+		Log.d("DEB","input= "+ input);
 		Toast.makeText(getApplicationContext(), "postImage is called", Toast.LENGTH_LONG).show();
-		String[] params = {BASE_URL+UPLOAD_URL};
+		String[] params = {BASE_URL+UPLOAD_URL,input};
 		new PostImageAsyncTask(this).execute(params);
 	}
 	
@@ -171,6 +178,7 @@ public class MainActivity extends ActionBarActivity {
 		private ProgressDialog pd;
 		private HttpURLConnection conn;
 		private String boundary;
+		// Line separator required by multipart/form-data.
 	    private String LINE_FEED = "\r\n";
 	    private String fileField = "fileField";
 	    private String fileName = "test1.jpg";
@@ -191,7 +199,7 @@ public class MainActivity extends ActionBarActivity {
 
 		protected String doInBackground(String... params) {
 			
-		     
+		    System.out.println("This input parameter can be used later here in this program = " + params[1]);
 		    Bitmap bitmap=BitmapFactory.decodeResource(getResources(), R.drawable.test1);
 		    if (bitmap == null) {
 		    	Log.d("DEB","The bitmap contains NULL");
@@ -220,15 +228,16 @@ public class MainActivity extends ActionBarActivity {
 			    //following to ensure that connection does not force to buffer the complete request body in memory
 			    conn.setChunkedStreamingMode(0);
 			 // creates a unique boundary based on time stamp
-		        boundary = "===" + System.currentTimeMillis() + "===";
-			    //set content type header
-			    conn.setRequestProperty("Content-Type", "multipart/form-data; boundary="+boundary);
+		        boundary = Long.toHexString(System.currentTimeMillis());
 			    //set content length
 			    conn.setRequestProperty("Content-Length", Integer.toString(image.length));
 			    //test filed
 			    conn.setRequestProperty("Test", "Bonjour");
+			  //set content type header
+			    conn.setRequestProperty("Content-Type", "multipart/form-data; boundary="+boundary);
 			  //send the POST out
-			  PrintWriter out = new PrintWriter(new OutputStreamWriter(conn.getOutputStream(),CHARSET),true);
+			    OutputStream output = conn.getOutputStream();
+			  PrintWriter out = new PrintWriter(new OutputStreamWriter(output,CHARSET),true);
 			    //OutputStream out1 = new BufferedOutputStream(conn.getOutputStream());
 			    
 			    
@@ -237,26 +246,23 @@ public class MainActivity extends ActionBarActivity {
 			    	Log.d("DEB","The outputstream OUT1 is NOT null");
 			    	  //adding form field part
 			    	out.append("--" + boundary).append(LINE_FEED);
-			        out.append("Content-Disposition: form-data; name=\"Field1\"")
-			                .append(LINE_FEED);
-			        out.append("Content-Type: text/plain;charset="+CHARSET).append(
-			                LINE_FEED);
+			        out.append("Content-Disposition: form-data; name=\"Field1\"").append(LINE_FEED);
+			        out.append("Content-Type: text/plain; charset=" + CHARSET).append(LINE_FEED);
 			        out.append(LINE_FEED);
 			        out.append("ImageField").append(LINE_FEED);
 			        out.flush();
 			        //adding from file part
-			          out.append("---"+boundary);
-			          out.append(LINE_FEED);
-			          out.append("Content-Disposition:form-data;name=\""+fileField+"\"; filename=\"" + fileName + "\"" + LINE_FEED);
-			          out.append(LINE_FEED);
-			          out.append("Content-Transfer-Encoding: binary");
-			          out.append(LINE_FEED);
-			          out.flush();
-			          conn.getOutputStream().write(image);
-			          conn.getOutputStream().flush();
+			          out.append("--"+boundary).append(LINE_FEED);
+			          out.append("Content-Disposition: form-data; name=\"imgaeFile\"; filename=\"" + fileName + "\"" + LINE_FEED);
+			          out.append("Content-Type: image/jpg").append(LINE_FEED);
+			        //  out.append("Content-Transfer-Encoding: binary").append(LINE_FEED);
 			          out.append(LINE_FEED);
 			          out.flush();
-			          out.append("--" + boundary + "--").append(LINE_FEED);
+			          output.write(image);
+			          output.flush(); // Important before continuing with writer!
+			          out.append(LINE_FEED).flush(); // CRLF is important! It indicates end of boundary.
+			       // End of multipart/form-data.
+			          out.append("--" + boundary + "--").append(LINE_FEED).flush();;
 			          out.close();
 			       }
 			       if(conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
@@ -285,6 +291,16 @@ public class MainActivity extends ActionBarActivity {
 				Log.d("DEB", "Exception is occurred");
 			  //  Log.d("DEB", "The error message details = " + conn.getErrorStream().toString());
 			    e.printStackTrace();
+			    InputStream in =  conn.getErrorStream();
+			    byte[] buf = new byte[1024 * 1024];
+			    try {
+					in.read(buf);
+					String errMsg = buf.toString();
+					Log.d("DEB", "The error message from server is = " + errMsg);
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
 			    return null;
 			}
 			finally {
